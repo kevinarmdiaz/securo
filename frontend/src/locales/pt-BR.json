@@ -128,7 +128,9 @@
     "aiAgents": "Agentes IA",
     "loans": "Créditos",
     "interestRates": "Taxas",
-    "debtBattle": "Batalha de dívidas"
+    "debtBattle": "Batalha de dívidas",
+    "financialHub": "Hub Financeiro",
+    "refinance": "Refinanciar"
   },
   "invoices": {
     "title": "Cobranças",

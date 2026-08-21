@@ -128,7 +128,9 @@
     "aiAgents": "KI-Agenten",
     "loans": "Kredite",
     "interestRates": "Zinsen",
-    "debtBattle": "Schuldenkampf"
+    "debtBattle": "Schuldenkampf",
+    "financialHub": "Finanz-Hub",
+    "refinance": "Refinanzieren"
   },
   "invoices": {
     "title": "Rechnungen",

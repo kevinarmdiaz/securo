@@ -128,7 +128,9 @@
     "aiAgents": "ИИ-агенты",
     "loans": "Кредиты",
     "interestRates": "Ставки",
-    "debtBattle": "Битва долгов"
+    "debtBattle": "Битва долгов",
+    "financialHub": "Финансовый хаб",
+    "refinance": "Рефинансировать"
   },
   "invoices": {
     "title": "Счета",
