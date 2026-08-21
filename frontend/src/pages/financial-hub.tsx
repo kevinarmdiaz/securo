@@ -8,12 +8,12 @@ import {
   recurring as recurringApi,
   goals as goalsApi,
 } from '@/lib/api'
-import type { Loan, Account, InterestRate, RecurringTransaction, Goal } from '@/types'
+import type { RecurringTransaction, Goal } from '@/types'
 import { PageHeader } from '@/components/page-header'
 import { formatCurrency } from '@/lib/format'
 import {
-  Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, TrendingUp, TrendingDown,
-  Landmark, Swords, Target, Calendar, Flame,
+  Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, TrendingUp,
+  Swords, Target, Calendar, Flame,
 } from 'lucide-react'
 
 function mvToEa(mv: number) { return (Math.pow(1 + mv / 100, 12) - 1) * 100 }
