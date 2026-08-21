@@ -13,7 +13,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import type { InterestRate } from '@/types'
-import { Plus, Trash2, Percent, TrendingUp } from 'lucide-react'
+import { Plus, Trash2, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 
 const SELECT_CLASS =
