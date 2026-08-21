@@ -1,0 +1,146 @@
+name: securo
+
+# Producción — kevindiaz.co (Dokploy + Traefik)
+# Traefik enruta: securo.kevindiaz.co → frontend nginx:8080
+# nginx proxea /api/ internamente a backend:8000 (no expuesto a Traefik)
+# db y redis: sin puertos publicados, solo red interna.
+#
+# Variables requeridas en Dokploy (env del servicio):
+#   SECRET_KEY         — string largo aleatorio (openssl rand -hex 32)
+#   POSTGRES_PASSWORD  — password de la base de datos
+#
+# Variables opcionales (con default seguro):
+#   FRONTEND_URL       — https://securo.kevindiaz.co
+#   DEBUG              — false
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://securo:${POSTGRES_PASSWORD}@db:5432/securo
+  SECRET_KEY: ${SECRET_KEY}
+  DEBUG: "false"
+  FRONTEND_URL: ${FRONTEND_URL:-https://securo.kevindiaz.co}
+  REDIS_URL: redis://redis:6379/0
+  STORAGE_LOCAL_PATH: /app/data/attachments
+  AGENTS_KNOWLEDGE_STORAGE_PATH: /app/data/agent_knowledge
+  # Integraciones bancarias — dejar vacío si no se usan
+  PLUGGY_CLIENT_ID: ${PLUGGY_CLIENT_ID:-}
+  PLUGGY_CLIENT_SECRET: ${PLUGGY_CLIENT_SECRET:-}
+  SIMPLEFIN_ENABLED: "false"
+  OIDC_ENABLED: "false"
+  OPENEXCHANGERATES_APP_ID: ${OPENEXCHANGERATES_APP_ID:-}
+  FX_SYNC_MODE: on_demand
+  TESOURO_DIRETO_ENABLED: "false"
+  # Agents IA — desactivados por defecto
+  AGENTS_ENABLED: "false"
+  AGENTS_MCP_JWT_SECRET: ${AGENTS_MCP_JWT_SECRET:-change-in-production}
+
+x-backend-base: &backend-base
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  environment: *backend-env
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  volumes:
+    - attachments:/app/data/attachments
+    - agent_knowledge:/app/data/agent_knowledge
+    - agent_embedding_models:/app/data/embedding_models
+  networks:
+    - dokploy-network
+  restart: unless-stopped
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: securo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: securo
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securo"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    <<: *backend-base
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  celery-worker:
+    <<: *backend-base
+    command: celery -A app.worker worker --loglevel=info --concurrency=2
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  celery-beat:
+    <<: *backend-base
+    command: celery -A app.worker beat --loglevel=info
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_APP_VERSION: ${APP_VERSION:-local}
+    environment:
+      BACKEND_URL: http://backend:8000
+      FRONTEND_URL: ${FRONTEND_URL:-https://securo.kevindiaz.co}
+    depends_on:
+      - backend
+    networks:
+      - dokploy-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "dokploy-network"
+      # HTTP → redirige a HTTPS
+      traefik.http.routers.securo-web.entrypoints: "web"
+      traefik.http.routers.securo-web.rule: "Host(`securo.kevindiaz.co`)"
+      traefik.http.routers.securo-web.middlewares: "redirect-to-https@file"
+      traefik.http.routers.securo-web.service: "securo"
+      # HTTPS
+      traefik.http.routers.securo-secure.entrypoints: "websecure"
+      traefik.http.routers.securo-secure.rule: "Host(`securo.kevindiaz.co`)"
+      traefik.http.routers.securo-secure.service: "securo"
+      traefik.http.routers.securo-secure.tls.certresolver: "letsencrypt"
+      traefik.http.services.securo.loadbalancer.server.port: "8080"
+
+volumes:
+  pgdata:
+  attachments:
+  agent_knowledge:
+  agent_embedding_models:
+
+networks:
+  dokploy-network:
+    external: true
