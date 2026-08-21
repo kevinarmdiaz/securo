@@ -29,6 +29,7 @@ from app.models.category_group import CategoryGroup
 from app.models.credit_card_bill import CreditCardBill
 from app.models.goal import Goal
 from app.models.loan import Loan
+from app.models.interest_rate import InterestRateHistory
 from app.models.group import Group, GroupMember
 from app.models.group_settlement import GroupSettlement
 from app.models.import_log import ImportLog
@@ -53,6 +54,7 @@ _AUTOSTAMP_MODELS = (
     CreditCardBill,
     Goal,
     Loan,
+    InterestRateHistory,
     Group,
     GroupMember,
     GroupSettlement,
