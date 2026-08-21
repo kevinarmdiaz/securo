@@ -127,7 +127,8 @@
     "agents": "Agenten",
     "aiAgents": "KI-Agenten",
     "loans": "Kredite",
-    "interestRates": "Zinsen"
+    "interestRates": "Zinsen",
+    "debtBattle": "Schuldenkampf"
   },
   "invoices": {
     "title": "Rechnungen",

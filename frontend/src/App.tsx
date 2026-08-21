@@ -28,6 +28,7 @@ const BudgetsPage = lazy(() => import('@/pages/budgets'))
 const RecurringPage = lazy(() => import('@/pages/recurring'))
 const GoalsPage = lazy(() => import('@/pages/goals'))
 const LoansPage = lazy(() => import('@/pages/loans'))
+const LoansBattlePage = lazy(() => import('@/pages/loans-battle'))
 const InterestRatesPage = lazy(() => import('@/pages/interest-rates'))
 const AssetsPage = lazy(() => import('@/pages/assets'))
 const ReportsPage = lazy(() => import('@/pages/reports'))
@@ -95,6 +96,7 @@ function App() {
                   <Route path="/budgets" element={<ModuleRoute module="budgets"><BudgetsPage /></ModuleRoute>} />
                   <Route path="/goals" element={<ModuleRoute module="goals"><GoalsPage /></ModuleRoute>} />
                   <Route path="/loans" element={<LoansPage />} />
+                  <Route path="/loans/battle" element={<LoansBattlePage />} />
                   <Route path="/interest-rates" element={<InterestRatesPage />} />
                   <Route path="/recurring" element={<ModuleRoute module="recurring"><RecurringPage /></ModuleRoute>} />
                   <Route path="/assets" element={<ModuleRoute module="assets"><AssetsPage /></ModuleRoute>} />

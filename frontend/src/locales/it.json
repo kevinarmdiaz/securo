@@ -127,7 +127,8 @@
     "agents": "Agenti",
     "aiAgents": "Agenti IA",
     "loans": "Loans",
-    "interestRates": "Interest Rates"
+    "interestRates": "Interest Rates",
+    "debtBattle": "Battaglia debiti"
   },
   "invoices": {
     "title": "Fatture",
