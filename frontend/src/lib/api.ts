@@ -43,6 +43,9 @@ import type {
   AssetValue,
   MarketSymbolMatch,
   MarketSymbolQuote,
+  Loan,
+  AmortizationTable,
+  InterestRate,
   Attachment,
   Goal,
   GoalSummary,
@@ -1632,6 +1635,56 @@ export const agents = {
       const { data } = await api.post(`/agents/connections/${id}/test`)
       return data
     },
+  },
+}
+
+// Loans (amortization)
+export const loans = {
+  list: async (status?: string): Promise<Loan[]> => {
+    const { data } = await api.get('/loans', { params: { status } })
+    return data
+  },
+  get: async (id: string): Promise<Loan> => {
+    const { data } = await api.get(`/loans/${id}`)
+    return data
+  },
+  create: async (loan: Partial<Loan>): Promise<Loan> => {
+    const { data } = await api.post('/loans', loan)
+    return data
+  },
+  update: async (id: string, loan: Partial<Loan>): Promise<Loan> => {
+    const { data } = await api.patch(`/loans/${id}`, loan)
+    return data
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/loans/${id}`)
+  },
+  amortization: async (id: string): Promise<AmortizationTable> => {
+    const { data } = await api.get(`/loans/${id}/amortization`)
+    return data
+  },
+}
+
+// Interest rate history
+export const interestRates = {
+  list: async (params?: { entity?: string; product_name?: string; rate_type?: string }): Promise<InterestRate[]> => {
+    const { data } = await api.get('/interest-rates', { params })
+    return data
+  },
+  latest: async (entity: string, product_name: string, rate_type: string): Promise<InterestRate> => {
+    const { data } = await api.get('/interest-rates/latest', { params: { entity, product_name, rate_type } })
+    return data
+  },
+  create: async (rate: Partial<InterestRate>): Promise<InterestRate> => {
+    const { data } = await api.post('/interest-rates', rate)
+    return data
+  },
+  update: async (id: string, rate: Partial<InterestRate>): Promise<InterestRate> => {
+    const { data } = await api.patch(`/interest-rates/${id}`, rate)
+    return data
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/interest-rates/${id}`)
   },
 }
 

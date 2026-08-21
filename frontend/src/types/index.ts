@@ -960,3 +960,64 @@ export interface ReportResponse {
   composition: ReportCompositionItem[]
   category_trend: CategoryTrendItem[]
 }
+
+// Loans (amortization)
+export interface Loan {
+  id: string
+  user_id: string
+  name: string
+  entity: string
+  current_balance: number
+  monthly_rate: number
+  monthly_payment: number
+  start_date: string
+  currency: string
+  status: 'active' | 'paid' | 'paused'
+  created_at: string
+  updated_at: string
+  total_remaining_payments: number
+  total_interest_remaining: number
+  projected_end_date: string | null
+}
+
+export interface AmortizationRow {
+  period: number
+  payment_date: string
+  opening_balance: number
+  payment: number
+  interest: number
+  principal: number
+  closing_balance: number
+}
+
+export interface AmortizationTable {
+  loan_id: string
+  name: string
+  entity: string
+  currency: string
+  monthly_rate: number
+  monthly_payment: number
+  rows: AmortizationRow[]
+  total_payments: number
+  total_interest: number
+  total_principal: number
+  periods: number
+}
+
+// Interest rate history
+export interface InterestRate {
+  id: string
+  user_id: string
+  entity: string
+  product_name: string
+  rate_type: 'compra_pesos' | 'avance_pesos' | 'mora_pesos' | 'compra_dolares' | 'avance_dolares' | 'mora_dolares' | 'otro'
+  currency: string
+  ea: number
+  mv: number
+  valid_from: string
+  valid_to: string | null
+  source_url: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}

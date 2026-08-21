@@ -125,7 +125,9 @@
     "groupAgents": "AI",
     "agents": "Agenci",
     "aiAgents": "Agenci AI",
-    "collections": "Kolekcje"
+    "collections": "Kolekcje",
+    "loans": "Loans",
+    "interestRates": "Interest Rates"
   },
   "invoices": {
     "title": "Faktury",

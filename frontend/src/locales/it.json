@@ -125,7 +125,9 @@
     "groupAdmin": "Amministrazione",
     "groupAgents": "IA",
     "agents": "Agenti",
-    "aiAgents": "Agenti IA"
+    "aiAgents": "Agenti IA",
+    "loans": "Loans",
+    "interestRates": "Interest Rates"
   },
   "invoices": {
     "title": "Fatture",

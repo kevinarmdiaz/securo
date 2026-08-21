@@ -125,7 +125,9 @@
     "groupAdmin": "Администрирование",
     "groupAgents": "ИИ",
     "agents": "Агенты",
-    "aiAgents": "ИИ-агенты"
+    "aiAgents": "ИИ-агенты",
+    "loans": "Кредиты",
+    "interestRates": "Ставки"
   },
   "invoices": {
     "title": "Счета",

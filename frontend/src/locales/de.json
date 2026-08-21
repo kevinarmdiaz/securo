@@ -125,7 +125,9 @@
     "groupAdmin": "Administration",
     "groupAgents": "KI",
     "agents": "Agenten",
-    "aiAgents": "KI-Agenten"
+    "aiAgents": "KI-Agenten",
+    "loans": "Kredite",
+    "interestRates": "Zinsen"
   },
   "invoices": {
     "title": "Rechnungen",
