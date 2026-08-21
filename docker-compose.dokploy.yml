@@ -14,11 +14,11 @@ name: securo
 #   DEBUG              — false
 
 x-backend-env: &backend-env
-  DATABASE_URL: postgresql+asyncpg://securo:${POSTGRES_PASSWORD}@db:5432/securo
+  DATABASE_URL: postgresql+asyncpg://securo:${POSTGRES_PASSWORD}@securo-db:5432/securo
   SECRET_KEY: ${SECRET_KEY}
   DEBUG: "false"
   FRONTEND_URL: ${FRONTEND_URL:-https://securo.kevindiaz.co}
-  REDIS_URL: redis://redis:6379/0
+  REDIS_URL: redis://securo-redis:6379/0
   STORAGE_LOCAL_PATH: /app/data/attachments
   AGENTS_KNOWLEDGE_STORAGE_PATH: /app/data/agent_knowledge
   # Integraciones bancarias — dejar vacío si no se usan
@@ -39,8 +39,8 @@ x-backend-base: &backend-base
     dockerfile: Dockerfile
   environment: *backend-env
   depends_on:
-    db: { condition: service_healthy }
-    redis: { condition: service_healthy }
+    securo-db: { condition: service_healthy }
+    securo-redis: { condition: service_healthy }
   volumes:
     - attachments:/app/data/attachments
     - agent_knowledge:/app/data/agent_knowledge
@@ -50,7 +50,7 @@ x-backend-base: &backend-base
   restart: unless-stopped
 
 services:
-  db:
+  securo-db:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
@@ -67,7 +67,7 @@ services:
       timeout: 3s
       retries: 5
 
-  redis:
+  securo-redis:
     image: redis:8-alpine
     restart: unless-stopped
     networks:
@@ -78,7 +78,7 @@ services:
       timeout: 3s
       retries: 5
 
-  backend:
+  securo-backend:
     <<: *backend-base
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
     deploy:
@@ -109,10 +109,10 @@ services:
       args:
         VITE_APP_VERSION: ${APP_VERSION:-local}
     environment:
-      BACKEND_URL: http://backend:8000
+      BACKEND_URL: http://securo-backend:8000
       FRONTEND_URL: ${FRONTEND_URL:-https://securo.kevindiaz.co}
     depends_on:
-      - backend
+      - securo-backend
     networks:
       - dokploy-network
     restart: unless-stopped
