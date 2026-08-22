@@ -130,7 +130,8 @@
     "interestRates": "Zinsen",
     "debtBattle": "Schuldenkampf",
     "financialHub": "Finanz-Hub",
-    "refinance": "Refinanzieren"
+    "refinance": "Refinanzieren",
+    "payday": "Zahltag"
   },
   "invoices": {
     "title": "Rechnungen",

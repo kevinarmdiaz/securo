@@ -31,6 +31,7 @@ const LoansPage = lazy(() => import('@/pages/loans'))
 const LoansBattlePage = lazy(() => import('@/pages/loans-battle'))
 const LoansRefinancePage = lazy(() => import('@/pages/loans-refinance'))
 const FinancialHubPage = lazy(() => import('@/pages/financial-hub'))
+const PaydayPage = lazy(() => import('@/pages/payday'))
 const InterestRatesPage = lazy(() => import('@/pages/interest-rates'))
 const AssetsPage = lazy(() => import('@/pages/assets'))
 const ReportsPage = lazy(() => import('@/pages/reports'))
@@ -101,6 +102,7 @@ function App() {
                   <Route path="/loans/battle" element={<LoansBattlePage />} />
                   <Route path="/loans/refinance" element={<LoansRefinancePage />} />
                   <Route path="/hub" element={<FinancialHubPage />} />
+                  <Route path="/payday" element={<PaydayPage />} />
                   <Route path="/interest-rates" element={<InterestRatesPage />} />
                   <Route path="/recurring" element={<ModuleRoute module="recurring"><RecurringPage /></ModuleRoute>} />
                   <Route path="/assets" element={<ModuleRoute module="assets"><AssetsPage /></ModuleRoute>} />

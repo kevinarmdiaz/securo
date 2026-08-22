@@ -130,7 +130,8 @@
     "interestRates": "Ставки",
     "debtBattle": "Битва долгов",
     "financialHub": "Финансовый хаб",
-    "refinance": "Рефинансировать"
+    "refinance": "Рефинансировать",
+    "payday": "День выплаты"
   },
   "invoices": {
     "title": "Счета",
