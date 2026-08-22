@@ -21,6 +21,7 @@ from app.models.app_settings import AppSetting
 from app.models.goal import Goal
 from app.models.loan import Loan
 from app.models.interest_rate import InterestRateHistory
+from app.models.one_off_debt import OneOffDebt
 from app.models.credit_card_bill import CreditCardBill
 from app.models.group import Group, GroupMember
 from app.models.transaction_split import TransactionSplit
@@ -59,6 +60,7 @@ __all__ = [
     "Goal",
     "Loan",
     "InterestRateHistory",
+    "OneOffDebt",
     "CreditCardBill",
     "Group",
     "GroupMember",

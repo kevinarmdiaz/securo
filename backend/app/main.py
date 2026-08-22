@@ -11,6 +11,7 @@ from app.api.budgets import router as budgets_router
 from app.api.goals import router as goals_router
 from app.api.loans import router as loans_router
 from app.api.interest_rates import router as interest_rates_router
+from app.api.one_off_debts import router as one_off_debts_router
 from app.api.groups import router as groups_router
 from app.api.categories import router as categories_router
 from app.api.category_groups import router as category_groups_router
@@ -170,6 +171,7 @@ app.include_router(budgets_router)
 app.include_router(goals_router)
 app.include_router(loans_router)
 app.include_router(interest_rates_router)
+app.include_router(one_off_debts_router)
 app.include_router(groups_router)
 app.include_router(assets_router)
 app.include_router(asset_groups_router)
