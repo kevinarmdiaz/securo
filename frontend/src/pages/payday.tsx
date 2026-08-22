@@ -9,10 +9,8 @@ import {
 import type { ProjectedTransaction, Loan, Account } from '@/types'
 import { PageHeader } from '@/components/page-header'
 import { formatCurrency } from '@/lib/format'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
-  CheckCircle2, Circle, Wallet, AlertTriangle, Upload, ExternalLink,
+  CheckCircle2, Circle, Wallet, AlertTriangle, Upload,
   Flame, Calendar as CalendarIcon, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -105,8 +103,6 @@ export default function PaydayPage() {
     }
 
     // 2. Cuotas de loans (siempre este mes)
-    const today = new Date()
-    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
     for (const l of loans) {
       if (l.status !== 'active') continue
       // Asumir cuota vence este mes si aún no venció
@@ -183,8 +179,8 @@ export default function PaydayPage() {
         category_id: it.category_id ?? undefined,
         notes: `Marcado como pagado desde Payday Splitter. Fuente: ${it.source} ${it.source_id}`,
       }
-      const { data } = await transactionsApi.create(body as any)
-      return { key: it.key, tx: data }
+      const tx = await transactionsApi.create(body as any)
+      return { key: it.key, tx }
     },
     onSuccess: ({ key, tx }) => {
       setPaidLocal((prev) => ({ ...prev, [key]: tx.id }))
