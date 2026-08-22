@@ -7,13 +7,14 @@ import {
   interestRates as ratesApi,
   recurring as recurringApi,
   goals as goalsApi,
+  categories as categoriesApi,
 } from '@/lib/api'
-import type { RecurringTransaction, Goal } from '@/types'
+import type { RecurringTransaction, Goal, Category } from '@/types'
 import { PageHeader } from '@/components/page-header'
 import { formatCurrency } from '@/lib/format'
 import {
   Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, TrendingUp,
-  Swords, Target, Calendar, Flame,
+  Swords, Target, Calendar, Flame, Repeat,
 } from 'lucide-react'
 
 function mvToEa(mv: number) { return (Math.pow(1 + mv / 100, 12) - 1) * 100 }
@@ -39,6 +40,7 @@ export default function FinancialHubPage() {
   const { data: rates = [] }    = useQuery({ queryKey: ['interest-rates'], queryFn: () => ratesApi.list() })
   const { data: recs = [] }     = useQuery<RecurringTransaction[]>({ queryKey: ['recurring'], queryFn: () => recurringApi.list() })
   const { data: goals = [] }    = useQuery<Goal[]>({ queryKey: ['goals'],  queryFn: () => goalsApi.list() })
+  const { data: cats = [] }     = useQuery<Category[]>({ queryKey: ['categories'], queryFn: () => categoriesApi.list() })
 
   // ─── NET WORTH ───
   const positiveAssets = accounts
@@ -97,6 +99,35 @@ export default function FinancialHubPage() {
     }
     return items.sort((x, y) => y.ea - x.ea).slice(0, 3)
   }, [loans, accounts, rates])
+
+  // ─── RECURRING POR CATEGORÍA (gastos mensualizados) ───
+  const catNameById = useMemo(() => Object.fromEntries(cats.map((c) => [c.id, c.name])), [cats])
+  const recurringByCategory = useMemo(() => {
+    const toMonthly = (amount: number, freq: string) => {
+      if (freq === 'monthly')   return amount
+      if (freq === 'weekly')    return amount * 4.33
+      if (freq === 'quarterly') return amount / 3
+      if (freq === 'yearly')    return amount / 12
+      return amount
+    }
+    const map = new Map<string, { total: number; count: number; items: string[] }>()
+    for (const r of recs) {
+      if (r.type !== 'debit' || !r.is_active) continue
+      const catId = r.category_id ?? 'uncategorized'
+      const catName = catNameById[catId] ?? 'Sin categoría'
+      const monthly = toMonthly(Number(r.amount), r.frequency)
+      const entry = map.get(catName) ?? { total: 0, count: 0, items: [] }
+      entry.total += monthly
+      entry.count += 1
+      entry.items.push(r.description)
+      map.set(catName, entry)
+    }
+    return [...map.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.total - a.total)
+  }, [recs, catNameById])
+
+  const recurringTotal = recurringByCategory.reduce((s, r) => s + r.total, 0)
 
   // ─── PRÓXIMOS 7 DÍAS ───
   const today = new Date()
@@ -242,6 +273,40 @@ export default function FinancialHubPage() {
           </div>
         </Card>
       </div>
+
+      {/* Recurring por categoría (gastos mensualizados) */}
+      {recurringByCategory.length > 0 && (
+        <Card>
+          <CardTitle icon={Repeat} action={<Link to="/recurring" className="text-xs font-bold text-primary hover:underline">Ver todas →</Link>}>
+            Gastos recurrentes por categoría — {formatCurrency(recurringTotal, 'COP')}/mes
+          </CardTitle>
+          <div className="space-y-2">
+            {recurringByCategory.map((cat) => {
+              const pct = recurringTotal > 0 ? (cat.total / recurringTotal) * 100 : 0
+              return (
+                <div key={cat.name} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{cat.name}</span>
+                      <span className="text-xs text-muted-foreground">({cat.count} recurrentes)</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground">{pct.toFixed(1)}%</span>
+                      <span className="font-bold text-rose-500">{formatCurrency(cat.total, 'COP')}</span>
+                    </div>
+                  </div>
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {cat.items.slice(0, 5).join(' · ')}{cat.items.length > 5 && ` · +${cat.items.length - 5} más`}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Metas */}
       {goals.length > 0 && (
