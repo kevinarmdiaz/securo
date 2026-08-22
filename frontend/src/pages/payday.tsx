@@ -72,9 +72,17 @@ export default function PaydayPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
   }, [])
 
+  // Ventana Payday: desde hoy hasta 35 días adelante (cubre el próximo sueldo)
+  const paydayWindow = useMemo(() => {
+    const today = new Date()
+    const end = new Date(today.getTime() + 35 * 86400000)
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return { from: fmt(today), to: fmt(end) }
+  }, [])
+
   const { data: projected = [] } = useQuery<ProjectedTransaction[]>({
-    queryKey: ['projected', currentMonth],
-    queryFn: () => dashboardApi.projectedTransactions({ month: currentMonth }),
+    queryKey: ['projected-window', paydayWindow.from, paydayWindow.to],
+    queryFn: () => dashboardApi.projectedTransactions({ from: paydayWindow.from, to: paydayWindow.to }),
   })
   const { data: loans = [] } = useQuery<Loan[]>({ queryKey: ['loans'], queryFn: () => loansApi.list() })
   const { data: accounts = [] } = useQuery<Account[]>({ queryKey: ['accounts'], queryFn: () => accountsApi.list() })
