@@ -46,6 +46,7 @@ import type {
   Loan,
   AmortizationTable,
   InterestRate,
+  OneOffDebt,
   Attachment,
   Goal,
   GoalSummary,
@@ -1685,6 +1686,25 @@ export const interestRates = {
   },
   delete: async (id: string): Promise<void> => {
     await api.delete(`/interest-rates/${id}`)
+  },
+}
+
+// One-off debts (SOAT, impuestos, DIAN, viajes, cursos, etc.)
+export const oneOffDebts = {
+  list: async (params?: { target_month?: string; include_paid?: boolean }): Promise<OneOffDebt[]> => {
+    const { data } = await api.get('/one-off-debts', { params })
+    return data
+  },
+  create: async (debt: Partial<OneOffDebt>): Promise<OneOffDebt> => {
+    const { data } = await api.post('/one-off-debts', debt)
+    return data
+  },
+  update: async (id: string, debt: Partial<OneOffDebt>): Promise<OneOffDebt> => {
+    const { data } = await api.patch(`/one-off-debts/${id}`, debt)
+    return data
+  },
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/one-off-debts/${id}`)
   },
 }
 

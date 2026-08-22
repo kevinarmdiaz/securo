@@ -1021,3 +1021,22 @@ export interface InterestRate {
   created_at: string
   updated_at: string
 }
+
+// One-off debts (SOAT, impuestos, DIAN, viajes, cursos, etc.)
+export interface OneOffDebt {
+  id: string
+  user_id: string
+  name: string
+  entity: string | null
+  amount: number
+  currency: string
+  due_date: string | null
+  target_month: string
+  priority: 'critical' | 'high' | 'normal' | 'low'
+  notes: string | null
+  paid: boolean
+  paid_at: string | null
+  paid_transaction_id: string | null
+  created_at: string
+  updated_at: string
+}
