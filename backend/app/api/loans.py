@@ -54,7 +54,7 @@ async def get_loan(
     loan = await loan_service.get_loan(session, loan_id, ctx.workspace.id, ctx.user_id)
     if not loan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
-    return loan_service._enrich_loan_read(loan)
+    return loan_service._enrich_loan_read(loan, list(loan.payments))
 
 
 @router.patch("/{loan_id}", response_model=LoanRead)

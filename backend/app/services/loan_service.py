@@ -356,7 +356,9 @@ async def update_loan(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(loan, field, value)
     await session.commit()
-    await session.refresh(loan, ["payments"])
+    # commit() expira los atributos: recargar entero, no solo la relacion, o
+    # leer una columna en codigo sincrono dispara IO fuera del contexto async.
+    loan = await get_loan(session, loan_id, workspace_id, user_id)
     return _enrich_loan_read(loan, list(loan.payments))
 
 
@@ -400,12 +402,20 @@ async def list_payments(
     return sorted(loan.payments, key=lambda p: p.payment_date)
 
 
-async def _sync_current_balance(session: AsyncSession, loan: Loan) -> None:
+async def _sync_current_balance(
+    session: AsyncSession,
+    loan_id: uuid.UUID,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> None:
     """Deja current_balance alineado con lo que dicen los pagos registrados."""
-    await session.refresh(loan, ["payments"])
-    loan.current_balance = _effective_balance(loan, sorted(loan.payments, key=lambda p: p.payment_date))
+    loan = await get_loan(session, loan_id, workspace_id, user_id)
+    if not loan:
+        return
+    loan.current_balance = _effective_balance(
+        loan, sorted(loan.payments, key=lambda p: p.payment_date)
+    )
     await session.commit()
-    await session.refresh(loan, ["payments"])
 
 
 async def add_payment(
@@ -426,9 +436,9 @@ async def add_payment(
     )
     session.add(payment)
     await session.commit()
-    await session.refresh(payment)
-    await _sync_current_balance(session, loan)
-    return payment
+    payment_id = payment.id
+    await _sync_current_balance(session, loan_id, workspace_id, user_id)
+    return await session.get(LoanPayment, payment_id)
 
 
 async def update_payment(
@@ -448,9 +458,8 @@ async def update_payment(
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(payment, field, value)
     await session.commit()
-    await session.refresh(payment)
-    await _sync_current_balance(session, loan)
-    return payment
+    await _sync_current_balance(session, loan_id, workspace_id, user_id)
+    return await session.get(LoanPayment, payment_id)
 
 
 async def delete_payment(
@@ -468,5 +477,5 @@ async def delete_payment(
         return False
     await session.delete(payment)
     await session.commit()
-    await _sync_current_balance(session, loan)
+    await _sync_current_balance(session, loan_id, workspace_id, user_id)
     return True
