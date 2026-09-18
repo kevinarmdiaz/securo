@@ -999,6 +999,14 @@ export interface LoanPayment {
   created_at: string
 }
 
+export interface MonthlyCompliance {
+  month: string
+  paid: number
+  expected: number
+  gap: number
+  covered: boolean
+}
+
 export interface PlanVsActual {
   payments_recorded: number
   first_payment_date: string | null
@@ -1015,6 +1023,10 @@ export interface PlanVsActual {
   actual_balance: number
   balance_gap: number
   on_track: boolean
+  monthly: MonthlyCompliance[]
+  months_short: number
+  consecutive_months_short: number
+  total_shortfall: number
 }
 
 export interface AmortizationRow {
