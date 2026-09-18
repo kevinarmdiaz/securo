@@ -10,7 +10,15 @@ from app.core.workspace_context import (
     current_workspace,
     current_writable_workspace,
 )
-from app.schemas.loan import AmortizationTable, LoanCreate, LoanRead, LoanUpdate
+from app.schemas.loan import (
+    AmortizationTable,
+    LoanCreate,
+    LoanPaymentCreate,
+    LoanPaymentRead,
+    LoanPaymentUpdate,
+    LoanRead,
+    LoanUpdate,
+)
 from app.services import loan_service
 
 router = APIRouter(prefix="/api/loans", tags=["loans"])
@@ -86,3 +94,68 @@ async def get_amortization(
     if not table:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
     return table
+
+
+@router.get("/{loan_id}/payments", response_model=list[LoanPaymentRead])
+async def list_payments(
+    loan_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    payments = await loan_service.list_payments(session, loan_id, ctx.workspace.id, ctx.user_id)
+    if payments is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    return payments
+
+
+@router.post(
+    "/{loan_id}/payments", response_model=LoanPaymentRead, status_code=status.HTTP_201_CREATED
+)
+async def add_payment(
+    loan_id: uuid.UUID,
+    data: LoanPaymentCreate,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        payment = await loan_service.add_payment(
+            session, loan_id, ctx.workspace.id, ctx.user_id, data
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    return payment
+
+
+@router.patch("/{loan_id}/payments/{payment_id}", response_model=LoanPaymentRead)
+async def update_payment(
+    loan_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    data: LoanPaymentUpdate,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    try:
+        payment = await loan_service.update_payment(
+            session, loan_id, payment_id, ctx.workspace.id, ctx.user_id, data
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    return payment
+
+
+@router.delete("/{loan_id}/payments/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_payment(
+    loan_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    deleted = await loan_service.delete_payment(
+        session, loan_id, payment_id, ctx.workspace.id, ctx.user_id
+    )
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")

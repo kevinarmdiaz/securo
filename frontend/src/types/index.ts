@@ -970,6 +970,8 @@ export interface Loan {
   current_balance: number
   monthly_rate: number
   monthly_payment: number
+  insurance_amount: number
+  original_balance: number | null
   start_date: string
   currency: string
   status: 'active' | 'paid' | 'paused'
@@ -978,6 +980,41 @@ export interface Loan {
   total_remaining_payments: number
   total_interest_remaining: number
   projected_end_date: string | null
+  effective_balance: number
+  payments_count: number
+  last_payment_date: string | null
+}
+
+export interface LoanPayment {
+  id: string
+  loan_id: string
+  payment_date: string
+  amount: number
+  principal: number
+  interest: number
+  insurance: number
+  balance_after: number | null
+  kind: 'installment' | 'extra_principal'
+  note: string | null
+  created_at: string
+}
+
+export interface PlanVsActual {
+  payments_recorded: number
+  first_payment_date: string | null
+  last_payment_date: string | null
+  months_elapsed: number
+  total_paid: number
+  total_principal_paid: number
+  total_interest_paid: number
+  total_insurance_paid: number
+  average_monthly_paid: number
+  expected_paid_to_date: number
+  payment_gap: number
+  balance_if_on_plan: number | null
+  actual_balance: number
+  balance_gap: number
+  on_track: boolean
 }
 
 export interface AmortizationRow {
@@ -988,6 +1025,10 @@ export interface AmortizationRow {
   interest: number
   principal: number
   closing_balance: number
+  insurance: number
+  is_actual: boolean
+  kind: string
+  note: string | null
 }
 
 export interface AmortizationTable {
@@ -997,7 +1038,11 @@ export interface AmortizationTable {
   currency: string
   monthly_rate: number
   monthly_payment: number
+  insurance_amount: number
   rows: AmortizationRow[]
+  actual_rows: AmortizationRow[]
+  starting_balance: number
+  plan_vs_actual: PlanVsActual | null
   total_payments: number
   total_interest: number
   total_principal: number

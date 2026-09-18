@@ -45,6 +45,7 @@ import type {
   MarketSymbolQuote,
   Loan,
   AmortizationTable,
+  LoanPayment,
   InterestRate,
   OneOffDebt,
   Attachment,
@@ -1663,6 +1664,25 @@ export const loans = {
   amortization: async (id: string): Promise<AmortizationTable> => {
     const { data } = await api.get(`/loans/${id}/amortization`)
     return data
+  },
+  payments: async (id: string): Promise<LoanPayment[]> => {
+    const { data } = await api.get(`/loans/${id}/payments`)
+    return data
+  },
+  addPayment: async (id: string, payment: Partial<LoanPayment>): Promise<LoanPayment> => {
+    const { data } = await api.post(`/loans/${id}/payments`, payment)
+    return data
+  },
+  updatePayment: async (
+    id: string,
+    paymentId: string,
+    payment: Partial<LoanPayment>,
+  ): Promise<LoanPayment> => {
+    const { data } = await api.patch(`/loans/${id}/payments/${paymentId}`, payment)
+    return data
+  },
+  deletePayment: async (id: string, paymentId: string): Promise<void> => {
+    await api.delete(`/loans/${id}/payments/${paymentId}`)
   },
 }
 

@@ -19,7 +19,7 @@ from app.models.transaction_attachment import TransactionAttachment
 from app.models.payee import Payee, PayeeMapping, PayeeTaxId
 from app.models.app_settings import AppSetting
 from app.models.goal import Goal
-from app.models.loan import Loan
+from app.models.loan import Loan, LoanPayment
 from app.models.interest_rate import InterestRateHistory
 from app.models.one_off_debt import OneOffDebt
 from app.models.credit_card_bill import CreditCardBill
@@ -59,6 +59,7 @@ __all__ = [
     "AppSetting",
     "Goal",
     "Loan",
+    "LoanPayment",
     "InterestRateHistory",
     "OneOffDebt",
     "CreditCardBill",

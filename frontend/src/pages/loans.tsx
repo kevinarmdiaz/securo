@@ -12,8 +12,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import type { Loan, AmortizationTable } from '@/types'
-import { Plus, Pencil, Trash2, Calculator, Landmark } from 'lucide-react'
+import type { Loan, AmortizationTable, LoanPayment, PlanVsActual } from '@/types'
+import { Plus, Pencil, Trash2, Calculator, Landmark, AlertTriangle, TrendingUp } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { formatCurrency } from '@/lib/format'
 
@@ -62,6 +62,8 @@ function LoanFormDialog({
       current_balance: Number(fd.get('current_balance')),
       monthly_rate: Number(fd.get('monthly_rate')),
       monthly_payment: Number(fd.get('monthly_payment')),
+      insurance_amount: Number(fd.get('insurance_amount') || 0),
+      original_balance: fd.get('original_balance') ? Number(fd.get('original_balance')) : null,
       start_date: fd.get('start_date') as string,
       currency: (fd.get('currency') as string) || 'COP',
     }
@@ -98,6 +100,16 @@ function LoanFormDialog({
               <Input name="monthly_rate" type="number" step="0.0001" defaultValue={editing?.monthly_rate} placeholder="1.16" required />
             </div>
             <div className="space-y-2">
+              <Label>Seguro / cargos por cuota</Label>
+              <Input name="insurance_amount" type="number" step="0.01" defaultValue={editing?.insurance_amount ?? 0} placeholder="43869" />
+              <p className="text-[11px] text-muted-foreground">Sale de la cuota antes del abono a capital.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Saldo original</Label>
+              <Input name="original_balance" type="number" step="0.01" defaultValue={editing?.original_balance ?? undefined} placeholder="Opcional" />
+              <p className="text-[11px] text-muted-foreground">Con qué arrancó el crédito, para comparar contra el plan.</p>
+            </div>
+            <div className="space-y-2">
               <Label>Moneda</Label>
               <select name="currency" defaultValue={editing?.currency || 'COP'} className={SELECT_CLASS}>
                 <option value="COP">COP</option>
@@ -122,7 +134,7 @@ function LoanFormDialog({
   )
 }
 
-function AmortizationDialog({
+function PaymentFormDialog({
   loan,
   open,
   onOpenChange,
@@ -131,11 +143,175 @@ function AmortizationDialog({
   open: boolean
   onOpenChange: (v: boolean) => void
 }) {
+  const qc = useQueryClient()
+  const create = useMutation({
+    mutationFn: (p: Partial<LoanPayment>) => loansApi.addPayment(loan!.id, p),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['amortization', loan?.id] })
+      qc.invalidateQueries({ queryKey: ['loan-payments', loan?.id] })
+      toast.success('Pago registrado')
+      onOpenChange(false)
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail || 'Error al registrar'),
+  })
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    create.mutate({
+      payment_date: fd.get('payment_date') as string,
+      amount: Number(fd.get('amount')),
+      principal: Number(fd.get('principal') || 0),
+      interest: Number(fd.get('interest') || 0),
+      insurance: Number(fd.get('insurance') || 0),
+      balance_after: fd.get('balance_after') ? Number(fd.get('balance_after')) : null,
+      kind: fd.get('kind') as LoanPayment['kind'],
+      note: (fd.get('note') as string) || null,
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Registrar pago — {loan?.name}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Copia el desglose tal como lo reporta la entidad en el extracto. El saldo
+            después del pago manda sobre el calculado.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Fecha</Label>
+              <Input name="payment_date" type="date" required />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <select name="kind" defaultValue="installment" className={SELECT_CLASS}>
+                <option value="installment">Cuota</option>
+                <option value="extra_principal">Abono a capital</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Consignado</Label>
+              <Input name="amount" type="number" step="0.01" required />
+            </div>
+            <div className="space-y-2">
+              <Label>A capital</Label>
+              <Input name="principal" type="number" step="0.01" defaultValue={0} />
+            </div>
+            <div className="space-y-2">
+              <Label>A intereses</Label>
+              <Input name="interest" type="number" step="0.01" defaultValue={0} />
+            </div>
+            <div className="space-y-2">
+              <Label>Seguro / adicionales</Label>
+              <Input name="insurance" type="number" step="0.01" defaultValue={0} />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Saldo después del pago</Label>
+              <Input name="balance_after" type="number" step="0.01" placeholder="El que reporta la entidad" />
+            </div>
+            <div className="space-y-2 col-span-2">
+              <Label>Nota</Label>
+              <Input name="note" placeholder="Abono cuota #8" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={create.isPending}>Registrar</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ComplianceBanner({ pv, currency }: { pv: PlanVsActual; currency: string }) {
+  const short = pv.months_short > 0
+  return (
+    <div
+      className={`rounded-lg border p-3 ${
+        short
+          ? 'border-rose-300 dark:border-rose-500/40 bg-rose-50 dark:bg-rose-500/10'
+          : 'border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-500/10'
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        {short ? (
+          <AlertTriangle className="h-4 w-4 mt-0.5 text-rose-600 dark:text-rose-400 shrink-0" />
+        ) : (
+          <TrendingUp className="h-4 w-4 mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+        )}
+        <div className="text-sm">
+          {short ? (
+            <>
+              <p className="font-medium text-rose-700 dark:text-rose-300">
+                {pv.months_short} de {pv.monthly.length} meses por debajo de la cuota
+                {pv.consecutive_months_short > 1 && ` — ${pv.consecutive_months_short} seguidos`}
+              </p>
+              <p className="text-muted-foreground">
+                Faltante acumulado {formatCurrency(pv.total_shortfall, currency)}. Un mes
+                grande no compensa los meses cortos: cada uno alarga el crédito.
+              </p>
+            </>
+          ) : (
+            <p className="font-medium text-emerald-700 dark:text-emerald-300">
+              Todos los meses registrados cubren la cuota pactada.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AmortizationDialog({
+  loan,
+  open,
+  onOpenChange,
+  onAddPayment,
+}: {
+  loan: Loan | null
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  onAddPayment: () => void
+}) {
+  const qc = useQueryClient()
+  const [tab, setTab] = useState<'projection' | 'actual' | 'monthly'>('projection')
+
   const { data: table, isLoading } = useQuery<AmortizationTable>({
     queryKey: ['amortization', loan?.id],
     queryFn: () => loansApi.amortization(loan!.id),
     enabled: !!loan && open,
   })
+
+  const { data: payments = [] } = useQuery<LoanPayment[]>({
+    queryKey: ['loan-payments', loan?.id],
+    queryFn: () => loansApi.payments(loan!.id),
+    enabled: !!loan && open,
+  })
+
+  const delPayment = useMutation({
+    mutationFn: (pid: string) => loansApi.deletePayment(loan!.id, pid),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['loans'] })
+      qc.invalidateQueries({ queryKey: ['amortization', loan?.id] })
+      qc.invalidateQueries({ queryKey: ['loan-payments', loan?.id] })
+      toast.success('Pago eliminado')
+    },
+  })
+
+  const pv = table?.plan_vs_actual ?? null
+  const cur = table?.currency ?? 'COP'
+
+  const TABS: { id: typeof tab; label: string }[] = [
+    { id: 'projection', label: `Proyección (${table?.periods ?? 0})` },
+    { id: 'actual', label: `Pagos reales (${payments.length})` },
+    { id: 'monthly', label: 'Mes a mes' },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -149,38 +325,195 @@ function AmortizationDialog({
         {table && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-3 border-b border-border">
-              <div><p className="text-xs text-muted-foreground">Cuotas restantes</p><p className="font-semibold">{table.periods}</p></div>
-              <div><p className="text-xs text-muted-foreground">Total intereses</p><p className="font-semibold">{formatCurrency(table.total_interest, table.currency)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Total capital</p><p className="font-semibold">{formatCurrency(table.total_principal, table.currency)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Total a pagar</p><p className="font-semibold">{formatCurrency(table.total_payments, table.currency)}</p></div>
+              <div>
+                <p className="text-xs text-muted-foreground">Saldo vigente</p>
+                <p className="font-semibold">{formatCurrency(table.starting_balance, cur)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Cuotas restantes</p>
+                <p className="font-semibold">{table.periods}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Intereses por pagar</p>
+                <p className="font-semibold text-amber-600 dark:text-amber-400">{formatCurrency(table.total_interest, cur)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Termina</p>
+                <p className="font-semibold">{table.rows.at(-1)?.payment_date ?? '—'}</p>
+              </div>
             </div>
+
+            {pv && (
+              <div className="py-3 space-y-3 border-b border-border">
+                <ComplianceBanner pv={pv} currency={cur} />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Pagado a la fecha</p>
+                    <p className="font-medium">{formatCurrency(pv.total_paid, cur)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">De eso, a capital</p>
+                    <p className="font-medium text-emerald-600 dark:text-emerald-400">{formatCurrency(pv.total_principal_paid, cur)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">A intereses</p>
+                    <p className="font-medium text-amber-600 dark:text-amber-400">{formatCurrency(pv.total_interest_paid, cur)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">A seguro</p>
+                    <p className="font-medium text-muted-foreground">{formatCurrency(pv.total_insurance_paid, cur)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2 py-2 border-b border-border">
+              <div className="flex gap-1">
+                {TABS.map((x) => (
+                  <button
+                    key={x.id}
+                    onClick={() => setTab(x.id)}
+                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                      tab === x.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    {x.label}
+                  </button>
+                ))}
+              </div>
+              <Button size="sm" variant="outline" onClick={onAddPayment}>
+                <Plus className="h-4 w-4 mr-1" /> Registrar pago
+              </Button>
+            </div>
+
             <div className="overflow-auto flex-1">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-card border-b border-border">
-                  <tr className="text-left text-xs text-muted-foreground">
-                    <th className="px-2 py-2">#</th>
-                    <th className="px-2 py-2">Fecha</th>
-                    <th className="px-2 py-2 text-right">Saldo inicio</th>
-                    <th className="px-2 py-2 text-right">Cuota</th>
-                    <th className="px-2 py-2 text-right">Intereses</th>
-                    <th className="px-2 py-2 text-right">Capital</th>
-                    <th className="px-2 py-2 text-right">Saldo fin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {table.rows.map((r) => (
-                    <tr key={r.period} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="px-2 py-1.5 text-muted-foreground">{r.period}</td>
-                      <td className="px-2 py-1.5">{r.payment_date}</td>
-                      <td className="px-2 py-1.5 text-right">{formatCurrency(r.opening_balance, table.currency)}</td>
-                      <td className="px-2 py-1.5 text-right font-medium">{formatCurrency(r.payment, table.currency)}</td>
-                      <td className="px-2 py-1.5 text-right text-amber-600 dark:text-amber-400">{formatCurrency(r.interest, table.currency)}</td>
-                      <td className="px-2 py-1.5 text-right text-emerald-600 dark:text-emerald-400">{formatCurrency(r.principal, table.currency)}</td>
-                      <td className="px-2 py-1.5 text-right">{formatCurrency(r.closing_balance, table.currency)}</td>
+              {tab === 'projection' && (
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-card border-b border-border">
+                    <tr className="text-left text-xs text-muted-foreground">
+                      <th className="px-2 py-2">#</th>
+                      <th className="px-2 py-2">Fecha</th>
+                      <th className="px-2 py-2 text-right">Saldo inicio</th>
+                      <th className="px-2 py-2 text-right">Cuota</th>
+                      <th className="px-2 py-2 text-right">Intereses</th>
+                      <th className="px-2 py-2 text-right">Seguro</th>
+                      <th className="px-2 py-2 text-right">Capital</th>
+                      <th className="px-2 py-2 text-right">Saldo fin</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {table.rows.map((r) => (
+                      <tr key={r.period} className="border-b border-border/50 hover:bg-muted/30">
+                        <td className="px-2 py-1.5 text-muted-foreground">{r.period}</td>
+                        <td className="px-2 py-1.5">{r.payment_date}</td>
+                        <td className="px-2 py-1.5 text-right">{formatCurrency(r.opening_balance, cur)}</td>
+                        <td className="px-2 py-1.5 text-right font-medium">{formatCurrency(r.payment, cur)}</td>
+                        <td className="px-2 py-1.5 text-right text-amber-600 dark:text-amber-400">{formatCurrency(r.interest, cur)}</td>
+                        <td className="px-2 py-1.5 text-right text-muted-foreground">{formatCurrency(r.insurance, cur)}</td>
+                        <td className="px-2 py-1.5 text-right text-emerald-600 dark:text-emerald-400">{formatCurrency(r.principal, cur)}</td>
+                        <td className="px-2 py-1.5 text-right">{formatCurrency(r.closing_balance, cur)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {tab === 'actual' && (
+                payments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Sin pagos registrados. Mientras no los cargues, la tabla es solo una proyección teórica.
+                  </p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-card border-b border-border">
+                      <tr className="text-left text-xs text-muted-foreground">
+                        <th className="px-2 py-2">Fecha</th>
+                        <th className="px-2 py-2">Concepto</th>
+                        <th className="px-2 py-2 text-right">Consignado</th>
+                        <th className="px-2 py-2 text-right">Capital</th>
+                        <th className="px-2 py-2 text-right">Intereses</th>
+                        <th className="px-2 py-2 text-right">Seguro</th>
+                        <th className="px-2 py-2 text-right">Saldo</th>
+                        <th className="px-2 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map((p) => (
+                        <tr key={p.id} className="border-b border-border/50 hover:bg-muted/30">
+                          <td className="px-2 py-1.5">{p.payment_date}</td>
+                          <td className="px-2 py-1.5">
+                            <span className="text-muted-foreground">{p.note || '—'}</span>
+                            {p.kind === 'extra_principal' && (
+                              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400">
+                                abono extra
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-medium">{formatCurrency(p.amount, cur)}</td>
+                          <td className="px-2 py-1.5 text-right text-emerald-600 dark:text-emerald-400">{formatCurrency(p.principal, cur)}</td>
+                          <td className="px-2 py-1.5 text-right text-amber-600 dark:text-amber-400">{formatCurrency(p.interest, cur)}</td>
+                          <td className="px-2 py-1.5 text-right text-muted-foreground">{formatCurrency(p.insurance, cur)}</td>
+                          <td className="px-2 py-1.5 text-right">{p.balance_after != null ? formatCurrency(p.balance_after, cur) : '—'}</td>
+                          <td className="px-2 py-1.5 text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => { if (confirm('¿Eliminar este pago?')) delPayment.mutate(p.id) }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              )}
+
+              {tab === 'monthly' && (
+                !pv ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    Registra pagos para comparar mes a mes contra la cuota pactada.
+                  </p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-card border-b border-border">
+                      <tr className="text-left text-xs text-muted-foreground">
+                        <th className="px-2 py-2">Mes</th>
+                        <th className="px-2 py-2 text-right">Entró</th>
+                        <th className="px-2 py-2 text-right">Cuota pactada</th>
+                        <th className="px-2 py-2 text-right">Faltante</th>
+                        <th className="px-2 py-2 text-center">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pv.monthly.map((m) => (
+                        <tr key={m.month} className="border-b border-border/50 hover:bg-muted/30">
+                          <td className="px-2 py-1.5 font-medium">{m.month}</td>
+                          <td className="px-2 py-1.5 text-right">{formatCurrency(m.paid, cur)}</td>
+                          <td className="px-2 py-1.5 text-right text-muted-foreground">{formatCurrency(m.expected, cur)}</td>
+                          <td className="px-2 py-1.5 text-right">
+                            {m.gap > 0 ? (
+                              <span className="text-rose-600 dark:text-rose-400 font-medium">{formatCurrency(m.gap, cur)}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5 text-center">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              m.covered
+                                ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                                : 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-400'
+                            }`}>
+                              {m.covered ? 'Cubierto' : 'Corto'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              )}
             </div>
           </>
         )}
@@ -199,13 +532,14 @@ export default function LoansPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Loan | null>(null)
   const [amortizationLoan, setAmortizationLoan] = useState<Loan | null>(null)
+  const [paymentLoan, setPaymentLoan] = useState<Loan | null>(null)
 
   const del = useMutation({
     mutationFn: (id: string) => loansApi.delete(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['loans'] }); toast.success('Crédito eliminado') },
   })
 
-  const totalDebt = loans.reduce((sum, l) => sum + Number(l.current_balance), 0)
+  const totalDebt = loans.reduce((sum, l) => sum + Number(l.effective_balance ?? l.current_balance), 0)
   const totalMonthly = loans.reduce((sum, l) => sum + Number(l.monthly_payment), 0)
   const totalInterest = loans.reduce((sum, l) => sum + Number(l.total_interest_remaining || 0), 0)
 
@@ -270,7 +604,14 @@ export default function LoansPage() {
                 <tr key={l.id} className="border-b border-border/50 hover:bg-muted/30">
                   <td className="px-4 py-3 font-medium">{l.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{l.entity}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(l.current_balance, l.currency)}</td>
+                  <td className="px-4 py-3 text-right">
+                    {formatCurrency(l.effective_balance ?? l.current_balance, l.currency)}
+                    {l.payments_count > 0 && (
+                      <span className="block text-[11px] text-muted-foreground">
+                        {l.payments_count} pago{l.payments_count === 1 ? '' : 's'} registrado{l.payments_count === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">{formatCurrency(l.monthly_payment, l.currency)}</td>
                   <td className="px-4 py-3 text-right text-muted-foreground">{Number(l.monthly_rate).toFixed(2)}%</td>
                   <td className="px-4 py-3 text-right">{l.total_remaining_payments}</td>
@@ -305,6 +646,12 @@ export default function LoansPage() {
         loan={amortizationLoan}
         open={!!amortizationLoan}
         onOpenChange={(v) => !v && setAmortizationLoan(null)}
+        onAddPayment={() => setPaymentLoan(amortizationLoan)}
+      />
+      <PaymentFormDialog
+        loan={paymentLoan}
+        open={!!paymentLoan}
+        onOpenChange={(v) => !v && setPaymentLoan(null)}
       />
     </div>
   )
